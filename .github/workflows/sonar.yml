@@ -20,7 +20,7 @@ jobs:
     - name: maven compile 
       run : mvn compile
     - name: build with maven cloud 
-      run: maven build
+      run: mvn -B
     - name: SonarQube Scan
       uses: sonarsource/sonarqube-scan-action@v2.3.0 # Ex: v2.1.0, See the latest version at https://github.com/marketplace/actions/official-sonarqube-scan
       env:
