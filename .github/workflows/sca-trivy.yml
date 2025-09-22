@@ -25,6 +25,7 @@ jobs:
           format: "table"
           output: "trivy-sca.txt"
           exit-code: "1"
+          options: "--skip-version-check"
 
       - name: Upload SCA Report
         uses: actions/upload-artifact@v4
