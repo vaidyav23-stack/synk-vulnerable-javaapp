@@ -10,22 +10,22 @@ jobs:
   sca-scan:
     runs-on: ubuntu-latest
     steps:
-      # Checkout code
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # Run Trivy SCA Scan (continue on error)
+      - name: Remove temp file if exists
+        run: rm -f trivy_envs.txt || true
+
       - name: Run Trivy SCA Scan
         continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: fs                # filesystem scan of source code
-          severity: "HIGH,CRITICAL"   # focus on high/critical vulnerabilities
-          format: "table"             # table output
-          output: "trivy-sca.txt"     # output file
-          exit-code: "1"              # report vulnerabilities internally
+          scan-type: fs
+          severity: "HIGH,CRITICAL"
+          format: "table"
+          output: "trivy-sca.txt"
+          exit-code: "1"
 
-      # Upload the report as an artifact
       - name: Upload SCA Report
         uses: actions/upload-artifact@v4
         with:
