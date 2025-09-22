@@ -19,16 +19,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Detect application type
-      - name: Detect Application Type
-        id: detect
-        run: |
-          if [ -f "pom.xml" ]; then
-            echo "lang=java" >> "$GITHUB_OUTPUT"
-          elif ls *.sln >/dev/null 2>&1; then
-            echo "lang=dotnet" >> "$GITHUB_OUTPUT"
-          else
-            echo "lang=unknown" >> "$GITHUB_OUTPUT"
+      # 2️⃣ name: Detect Application Type
+      id: detect
+      run: |
+        if [ -f "pom.xml" ]; then
+        echo "lang=java" >> "$GITHUB_OUTPUT"
+        elif ls *.sln >/dev/null 2>&1; then
+        echo "lang=dotnet" >> "$GITHUB_OUTPUT"
+        else
+        echo "lang=unknown" >> "$GITHUB_OUTPUT"
+      fi
 
       # 3️⃣ Setup SDKs and Build
       - name: Setup and Build .NET
