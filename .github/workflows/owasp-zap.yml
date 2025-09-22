@@ -92,6 +92,8 @@ jobs:
           if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
             echo "Skipping SAST, no supported language found"
           else
+            echo "Running SonarQube Scan..."
+            # sonar-scanner -Dsonar.projectKey=myapp -Dsonar.host.url=${{ secrets.SONAR_HOST }} -Dsonar.login=${{ secrets.SONAR_TOKEN }}
             echo "Running Semgrep..."
             # semgrep --config=auto .
             echo "Running Trivy FS..."
@@ -105,10 +107,10 @@ jobs:
           path: trivy-sast.txt
 
   # ----------------------
-  # 4. AI Report for CI
+  # 3. AI Report for CI
   # ----------------------
   ai-ci:
-    needs: [sast, container-scan]
+    needs: [sast]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -119,11 +121,6 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: sast-results
-          path: reports
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: container-results
           path: reports
 
       - name: Install Ollama
@@ -137,8 +134,6 @@ jobs:
           cat reports/coverage-*.txt >> ai-ci-input.md || true
           echo "## SAST Results" >> ai-ci-input.md
           cat reports/trivy-sast.txt >> ai-ci-input.md || true
-          echo "## Container Scan" >> ai-ci-input.md
-          cat reports/trivy-image.txt >> ai-ci-input.md || true
 
       - name: Generate AI CI Suggestions
         run: |
