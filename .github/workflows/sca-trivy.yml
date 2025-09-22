@@ -10,9 +10,11 @@ jobs:
   sca-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      # 1️⃣ Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
+      # 2️⃣ Install Trivy manually
       - name: Install Trivy
         run: |
           sudo apt-get update
@@ -21,11 +23,14 @@ jobs:
           tar zxvf trivy_0.66.0_Linux-64bit.tar.gz
           sudo mv trivy /usr/local/bin/
 
-      - name: Run Trivy SCA Scan (continue on error)
-        run: trivy fs --skip-version-check --severity HIGH,CRITICAL --format table --output trivy-sca.txt . || true
+      # 3️⃣ Run Trivy SCA scan (suppress exit failures)
+      - name: Run Trivy SCA Scan
+        run: |
+          trivy fs --skip-version-check --severity HIGH,CRITICAL --format template --template "@contrib/html.tpl" --output trivy-sca.html . || true
 
-      - name: Upload SCA Report
+      # 4️⃣ Upload HTML report
+      - name: Upload SCA HTML Report
         uses: actions/upload-artifact@v4
         with:
-          name: sca-results
-          path: trivy-sca.txt
+          name: sca-report-html
+          path: trivy-sca.html
