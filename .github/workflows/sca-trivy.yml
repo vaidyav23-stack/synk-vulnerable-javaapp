@@ -1,0 +1,32 @@
+name: SCA-Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  sca-scan:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Install Trivy and run SCA scan
+      - name: Run Trivy SCA Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs                # filesystem scan of source code
+          severity: "HIGH,CRITICAL"   # only fail on high/critical vulnerabilities
+          format: "table"             # table output (can also use json, sarif)
+          output: "trivy-sca.txt"     # output file
+          exit-code: "1"              # set non-zero exit code for vulnerabilities
+
+      # Upload the report as an artifact
+      - name: Upload SCA Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-results
+          path: trivy-sca.txt
