@@ -6,15 +6,19 @@ on:
   pull_request:
     branches: [ main ]
 
-    jobs:
-      sast:
-        runs-on: ubuntu-latest
-        strategy:
-          matrix:
-            language: [dotnet, node, python, java] # generic app support
-     steps:
+jobs:
+  sast:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [dotnet, node, python, java] # generic app support
+    steps:
       - uses: actions/checkout@v4
-        name: Run Semgrep (OWASP Top 10)
+
+      # ---------------------------
+      # 2. Semgrep (Open Source SAST)
+      # ---------------------------
+      - name: Run Semgrep (OWASP Top 10)
         uses: returntocorp/semgrep-action@v1
         with:
           config: "p/owasp-top-ten"
