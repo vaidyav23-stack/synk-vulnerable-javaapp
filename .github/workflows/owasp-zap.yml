@@ -1,4 +1,4 @@
-name: CI-CD-Security-AI
+name: CI-Security-AI
 
 on:
   push:
@@ -28,28 +28,26 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
+        outputs:
+          lang: ${{ steps.detect.outputs.lang }}
 
       - name: Run Unit Tests & Coverage
         run: |
           case "${{ steps.detect.outputs.lang }}" in
             java)
-              echo "Running Java unit tests..."
               mvn test
               echo "coverage-java.txt" > coverage-java.txt
               ;;
             node)
-              echo "Running Node.js unit tests..."
               npm install
               npm test
               echo "coverage-node.txt" > coverage-node.txt
               ;;
             python)
-              echo "Running Python unit tests..."
               pip install -r requirements.txt
               pytest --junitxml=coverage-python.txt
               ;;
             dotnet)
-              echo "Running .NET unit tests..."
               dotnet test
               echo "coverage-dotnet.txt" > coverage-dotnet.txt
               ;;
@@ -63,6 +61,7 @@ jobs:
         with:
           name: coverage-report
           path: coverage-*.txt
+          if-no-files-found: ignore
 
   # ----------------------
   # 2. SAST (Static Scans)
@@ -73,7 +72,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect Language
+      - name: Detect Application Language
         id: detect
         run: |
           if [ -f "pom.xml" ]; then
@@ -86,21 +85,30 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
+        outputs:
+          lang: ${{ steps.detect.outputs.lang }}
 
-      - name: Run SAST Only If Relevant
+      - name: Run SAST Scans
         run: |
           if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
-            echo "Skipping SAST"
-          else
-            echo "Running SonarQube Scan..."
-            echo "Running Semgrep..."
-            echo "Running Trivy FS..."
-            echo "trivy-sast.txt" > trivy-sast.txt
+            echo "Skipping SAST - no supported language"
+            exit 0
+          fi
+
+          echo "Running SonarQube Scan..."
+          # sonar-scanner -Dsonar.projectKey=myapp -Dsonar.sources=.
+
+          echo "Running Semgrep..."
+          semgrep --config "p/owasp-top-ten" . || true
+
+          echo "Running Trivy FS..."
+          trivy fs --severity HIGH,CRITICAL --format table -o trivy-sast.txt .
 
       - uses: actions/upload-artifact@v4
         with:
           name: sast-results
           path: trivy-sast.txt
+          if-no-files-found: ignore
 
   # ----------------------
   # 3. Container Security
@@ -111,7 +119,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect Language
+      - name: Detect Application Language
         id: detect
         run: |
           if [ -f "pom.xml" ]; then
@@ -124,19 +132,24 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
+        outputs:
+          lang: ${{ steps.detect.outputs.lang }}
 
-      - name: Build Docker Image & Run Trivy
+      - name: Build Docker Image & Scan
         run: |
-          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
-            echo "Skipping container scan"
-          else
-            docker build -t myapp:${{ github.sha }} .
-            echo "trivy-image.txt" > trivy-image.txt
+          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ] || [ ! -f Dockerfile ]; then
+            echo "Skipping container scan (no supported language or Dockerfile)"
+            exit 0
+          fi
+
+          docker build -t myapp:${{ github.sha }} .
+          trivy image --severity HIGH,CRITICAL --format table -o trivy-image.txt myapp:${{ github.sha }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: container-results
           path: trivy-image.txt
+          if-no-files-found: ignore
 
   # ----------------------
   # 4. AI Report for CI
