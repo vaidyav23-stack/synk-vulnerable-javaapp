@@ -1,4 +1,4 @@
-name: CI-SAST-AI-OpenSource
+name: CI-SAST-AI-OpenSource-Email
 
 on:
   push:
@@ -114,6 +114,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Download reports
       - uses: actions/download-artifact@v4
         with:
           name: coverage-report
@@ -123,13 +124,13 @@ jobs:
           name: sast-results
           path: reports
 
-      # 1. Install GPT4All CLI
+      # Install GPT4All CLI
       - name: Install GPT4All
         run: |
           curl -L https://gpt4all.io/models/gpt4all-lora-quantized-linux-x86 -o gpt4all
           chmod +x gpt4all
 
-      # 2. Collect CI reports
+      # Collect CI reports into a single file
       - name: Collect CI Reports
         run: |
           echo "## Unit Test & Coverage (CI)" > ai-ci-input.txt
@@ -137,14 +138,35 @@ jobs:
           echo "## SAST Results" >> ai-ci-input.txt
           cat reports/trivy-sast.txt >> ai-ci-input.txt || true
 
-      # 3. Run AI model locally
+      # Generate AI suggestions
       - name: Generate AI Suggestions
         continue-on-error: true
         run: |
           ./gpt4all -m gpt4all-lora-quantized-linux-x86 -p "Analyze the following CI reports and provide recommendations:\n$(cat ai-ci-input.txt)" > ai-ci-suggestions.txt || echo "AI analysis failed" > ai-ci-suggestions.txt
 
-      # 4. Upload AI suggestions
+      # Upload AI suggestions as artifact
       - uses: actions/upload-artifact@v4
         with:
           name: ai-ci-suggestions
           path: ai-ci-suggestions.txt
+
+      # Send email with AI report
+      - name: Send AI Report via Email
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "CI AI Report - ${{ github.repository }} #${{ github.run_number }}"
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.SMTP_USER }}
+          body: |
+            Hello Team,
+
+            Please find attached the AI-generated recommendations from the latest CI run.
+
+            Regards,
+            CI Bot
+          attachments: ai-ci-suggestions.txt
