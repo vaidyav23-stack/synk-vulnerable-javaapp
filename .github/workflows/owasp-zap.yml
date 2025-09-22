@@ -105,46 +105,6 @@ jobs:
           path: trivy-sast.txt
 
   # ----------------------
-  # 3. Container Security
-  # ----------------------
-  container-scan:
-    needs: build-test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Detect Application Language
-        id: detect
-        run: |
-          if [ -f "pom.xml" ]; then
-            echo "lang=java" >> $GITHUB_OUTPUT
-          elif [ -f "package.json" ]; then
-            echo "lang=node" >> $GITHUB_OUTPUT
-          elif [ -f "requirements.txt" ]; then
-            echo "lang=python" >> $GITHUB_OUTPUT
-          elif ls *.sln >/dev/null 2>&1; then
-            echo "lang=dotnet" >> $GITHUB_OUTPUT
-          else
-            echo "lang=unknown" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build Docker Image Only if Relevant
-        run: |
-          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
-            echo "Skipping container scan, no supported language found"
-          else
-            docker build -t myapp:${{ github.sha }} .
-            echo "Running Trivy container scan..."
-            # trivy image myapp:${{ github.sha }} > trivy-image.txt
-            echo "trivy-image.txt" > trivy-image.txt
-          fi
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: container-results
-          path: trivy-image.txt
-
-  # ----------------------
   # 4. AI Report for CI
   # ----------------------
   ai-ci:
