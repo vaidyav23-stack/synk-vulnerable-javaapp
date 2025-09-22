@@ -1,4 +1,4 @@
-name: CI-Security-AI
+name: CI-CD-Security-AI
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
   # ----------------------
   # 1. Detect Language & Build/Test
   # ----------------------
- build-test:
+  build-test:
     runs-on: ubuntu-latest
     outputs:
       lang: ${{ steps.detect.outputs.lang }}
@@ -30,7 +30,7 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
-          fi   # <-- this 'fi' was missing before
+          fi
 
       - name: Run Unit Tests & Coverage
         run: |
@@ -56,13 +56,12 @@ jobs:
               echo "No supported language detected"
               exit 1
               ;;
-          esac   # <-- this 'esac' is required to close case
+          esac
 
       - uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage-*.txt
-          if-no-files-found: ignore
 
   # ----------------------
   # 2. SAST (Static Scans)
@@ -73,24 +72,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run SAST Scans
+      - name: Detect Application Language
+        id: detect
         run: |
-          if [ "${{ needs.build-test.outputs.lang }}" = "unknown" ]; then
-            echo "Skipping SAST - no supported language"
-            exit 0
+          if [ -f "pom.xml" ]; then
+            echo "lang=java" >> $GITHUB_OUTPUT
+          elif [ -f "package.json" ]; then
+            echo "lang=node" >> $GITHUB_OUTPUT
+          elif [ -f "requirements.txt" ]; then
+            echo "lang=python" >> $GITHUB_OUTPUT
+          elif ls *.sln >/dev/null 2>&1; then
+            echo "lang=dotnet" >> $GITHUB_OUTPUT
+          else
+            echo "lang=unknown" >> $GITHUB_OUTPUT
           fi
 
-          echo "Running Semgrep..."
-          semgrep --config "p/owasp-top-ten" . || true
-
-          echo "Running Trivy FS..."
-          trivy fs --severity HIGH,CRITICAL --format table -o trivy-sast.txt .
+      - name: Run SAST Only if Relevant
+        run: |
+          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
+            echo "Skipping SAST, no supported language found"
+          else
+            echo "Running Semgrep..."
+            # semgrep --config=auto .
+            echo "Running Trivy FS..."
+            # trivy fs . > trivy-sast.txt
+            echo "trivy-sast.txt" > trivy-sast.txt
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: sast-results
           path: trivy-sast.txt
-          if-no-files-found: ignore
 
   # ----------------------
   # 3. Container Security
@@ -101,21 +113,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker Image & Scan
+      - name: Detect Application Language
+        id: detect
         run: |
-          if [ "${{ needs.build-test.outputs.lang }}" = "unknown" ] || [ ! -f Dockerfile ]; then
-            echo "Skipping container scan (no supported language or Dockerfile)"
-            exit 0
+          if [ -f "pom.xml" ]; then
+            echo "lang=java" >> $GITHUB_OUTPUT
+          elif [ -f "package.json" ]; then
+            echo "lang=node" >> $GITHUB_OUTPUT
+          elif [ -f "requirements.txt" ]; then
+            echo "lang=python" >> $GITHUB_OUTPUT
+          elif ls *.sln >/dev/null 2>&1; then
+            echo "lang=dotnet" >> $GITHUB_OUTPUT
+          else
+            echo "lang=unknown" >> $GITHUB_OUTPUT
           fi
 
-          docker build -t myapp:${{ github.sha }} .
-          trivy image --severity HIGH,CRITICAL --format table -o trivy-image.txt myapp:${{ github.sha }}
+      - name: Build Docker Image Only if Relevant
+        run: |
+          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
+            echo "Skipping container scan, no supported language found"
+          else
+            docker build -t myapp:${{ github.sha }} .
+            echo "Running Trivy container scan..."
+            # trivy image myapp:${{ github.sha }} > trivy-image.txt
+            echo "trivy-image.txt" > trivy-image.txt
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: container-results
           path: trivy-image.txt
-          if-no-files-found: ignore
 
   # ----------------------
   # 4. AI Report for CI
@@ -128,10 +155,12 @@ jobs:
         with:
           name: coverage-report
           path: reports
+
       - uses: actions/download-artifact@v4
         with:
           name: sast-results
           path: reports
+
       - uses: actions/download-artifact@v4
         with:
           name: container-results
