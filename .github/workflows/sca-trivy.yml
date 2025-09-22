@@ -13,19 +13,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Remove temp file if exists
-        run: rm -f trivy_envs.txt || true
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget tar
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.66.0_Linux-64bit.tar.gz
+          tar zxvf trivy_0.66.0_Linux-64bit.tar.gz
+          sudo mv trivy /usr/local/bin/
 
-      - name: Run Trivy SCA Scan
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: fs
-          severity: "HIGH,CRITICAL"
-          format: "table"
-          output: "trivy-sca.txt"
-          exit-code: "1"
-          options: "--skip-version-check"
+      - name: Run Trivy SCA Scan (continue on error)
+        run: trivy fs --skip-version-check --severity HIGH,CRITICAL --format table --output trivy-sca.txt . || true
 
       - name: Upload SCA Report
         uses: actions/upload-artifact@v4
