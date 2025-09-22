@@ -1,4 +1,4 @@
-name: CISecurity-AI
+name: CI-Security-AI
 
 on:
   push:
@@ -94,10 +94,7 @@ jobs:
             echo "Skipping SAST - no supported language"
             exit 0
           fi
-
-          echo "Running SonarQube Scan..."
-          # sonar-scanner -Dsonar.projectKey=myapp -Dsonar.sources=.
-
+          
           echo "Running Semgrep..."
           semgrep --config "p/owasp-top-ten" . || true
 
