@@ -1,65 +1,73 @@
-name: CodeQL-CI
+name: CodeQL
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 1'
 
 jobs:
   analyze:
-    name: CodeQL Analyze
+    name: Analyze
     runs-on: ubuntu-latest
     permissions:
       security-events: write
       actions: read
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ name: Detect Application Type
-      id: detect
-      run: |
-        if [ -f "pom.xml" ]; then
-        echo "lang=java" >> "$GITHUB_OUTPUT"
-        elif ls *.sln >/dev/null 2>&1; then
-        echo "lang=dotnet" >> "$GITHUB_OUTPUT"
-        else
-        echo "lang=unknown" >> "$GITHUB_OUTPUT"
-      fi
+      - name: Detect Application Type
+        id: detect
+        run: |
+          if [ -f "pom.xml" ]; then
+            echo "lang=java" >> "$GITHUB_OUTPUT"
+          elif ls *.sln >/dev/null 2>&1; then
+            echo "lang=dotnet" >> "$GITHUB_OUTPUT"
+          else
+            echo "lang=unknown" >> "$GITHUB_OUTPUT"
+          fi
 
-      # 3️⃣ Setup SDKs and Build
-      - name: Setup and Build .NET
-        if: ${{ steps.detect.outputs.lang == 'dotnet' }}
+      # Setup Java only if project is Java
+      - name: Setup Java
+        if: steps.detect.outputs.lang == 'java'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Setup .NET only if project is .NET
+      - name: Setup .NET SDK
+        if: steps.detect.outputs.lang == 'dotnet'
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore and Build .NET
-        if: ${{ steps.detect.outputs.lang == 'dotnet' }}
-        run: |
-          dotnet restore
-          dotnet build --configuration Release --no-restore
+      # Build Java project
+      - name: Build Java
+        if: steps.detect.outputs.lang == 'java'
+        run: mvn -B package --file pom.xml
 
-      - name: Setup Java
-        if: ${{ steps.detect.outputs.lang == 'java' }}
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+      # Build .NET project
+      - name: Restore .NET dependencies
+        if: steps.detect.outputs.lang == 'dotnet'
+        run: dotnet restore
 
-      - name: Build Java Project
-        if: ${{ steps.detect.outputs.lang == 'java' }}
-        run: mvn clean compile
+      - name: Build .NET
+        if: steps.detect.outputs.lang == 'dotnet'
+        run: dotnet build --configuration Release --no-restore
 
-      # 4️⃣ Initialize CodeQL
       - name: Initialize CodeQL
+        if: steps.detect.outputs.lang != 'unknown'
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ steps.detect.outputs.lang }}
 
-      # 5️⃣ Perform CodeQL Analysis
       - name: Perform CodeQL Analysis
+        if: steps.detect.outputs.lang != 'unknown'
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ steps.detect.outputs.lang }}"
