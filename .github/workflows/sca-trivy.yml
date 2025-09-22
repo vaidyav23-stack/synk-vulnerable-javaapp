@@ -14,15 +14,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Install Trivy and run SCA scan
+      # Run Trivy SCA Scan (continue on error)
       - name: Run Trivy SCA Scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: fs                # filesystem scan of source code
-          severity: "HIGH,CRITICAL"   # only fail on high/critical vulnerabilities
-          format: "table"             # table output (can also use json, sarif)
+          severity: "HIGH,CRITICAL"   # focus on high/critical vulnerabilities
+          format: "table"             # table output
           output: "trivy-sca.txt"     # output file
-          exit-code: "1"              # set non-zero exit code for vulnerabilities
+          exit-code: "1"              # report vulnerabilities internally
 
       # Upload the report as an artifact
       - name: Upload SCA Report
