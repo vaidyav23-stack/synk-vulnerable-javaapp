@@ -85,7 +85,6 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
-          fi
 
       - name: Run SAST
         continue-on-error: true
@@ -97,7 +96,6 @@ jobs:
             echo "Running Semgrep..." || true
             echo "Running Trivy FS..." || true
             echo "trivy-sast.txt" > trivy-sast.txt
-          fi
 
       - uses: actions/upload-artifact@v4
         with:
@@ -111,6 +109,7 @@ jobs:
     needs: [sast]
     if: always()
     runs-on: ubuntu-latest
+    environment: test  # <-- Use the 'test' environment secrets
     steps:
       - uses: actions/checkout@v4
 
@@ -150,7 +149,7 @@ jobs:
           name: ai-ci-suggestions
           path: ai-ci-suggestions.txt
 
-      # Send email with AI report
+      # Send email with AI report using test environment secrets
       - name: Send AI Report via Email
         if: always()
         uses: dawidd6/action-send-mail@v3
@@ -159,9 +158,9 @@ jobs:
           server_port: ${{ secrets.SMTP_PORT }}
           username: ${{ secrets.SMTP_USER }}
           password: ${{ secrets.SMTP_PASS }}
-          subject: "CI AI Report - ${{ github.repository }} #${{ github.run_number }}"
-          to: ${{ secrets.EMAIL_TO }}
           from: ${{ secrets.SMTP_USER }}
+          to: ${{ secrets.EMAIL_TO }}
+          subject: "CI AI Report - ${{ github.repository }} #${{ github.run_number }}"
           body: |
             Hello Team,
 
