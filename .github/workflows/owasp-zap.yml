@@ -10,7 +10,7 @@ jobs:
   # ----------------------
   # 1. Detect Language & Build/Test
   # ----------------------
-  build-test:
+ build-test:
     runs-on: ubuntu-latest
     outputs:
       lang: ${{ steps.detect.outputs.lang }}
@@ -30,6 +30,7 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
+          fi   # <-- this 'fi' was missing before
 
       - name: Run Unit Tests & Coverage
         run: |
@@ -55,7 +56,7 @@ jobs:
               echo "No supported language detected"
               exit 1
               ;;
-          esac
+          esac   # <-- this 'esac' is required to close case
 
       - uses: actions/upload-artifact@v4
         with:
