@@ -24,11 +24,11 @@ jobs:
         id: detect
         run: |
           if [ -f "pom.xml" ]; then
-            echo "lang=java" >> $GITHUB_OUTPUT
+            echo "lang=java" >> "$GITHUB_OUTPUT"
           elif ls *.sln >/dev/null 2>&1; then
-            echo "lang=dotnet" >> $GITHUB_OUTPUT
+            echo "lang=dotnet" >> "$GITHUB_OUTPUT"
           else
-            echo "lang=unknown" >> $GITHUB_OUTPUT
+            echo "lang=unknown" >> "$GITHUB_OUTPUT"
 
       # 3️⃣ Setup SDKs and Build
       - name: Setup and Build .NET
@@ -36,6 +36,7 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
       - name: Restore and Build .NET
         if: ${{ steps.detect.outputs.lang == 'dotnet' }}
         run: |
