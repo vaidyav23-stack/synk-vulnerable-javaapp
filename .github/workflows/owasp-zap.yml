@@ -2,7 +2,9 @@ name: CI-Security-AI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   # ----------------------
@@ -10,6 +12,8 @@ jobs:
   # ----------------------
   build-test:
     runs-on: ubuntu-latest
+    outputs:
+      lang: ${{ steps.detect.outputs.lang }}
     steps:
       - uses: actions/checkout@v4
 
@@ -26,8 +30,6 @@ jobs:
             echo "lang=dotnet" >> $GITHUB_OUTPUT
           else
             echo "lang=unknown" >> $GITHUB_OUTPUT
-        outputs:
-          lang: ${{ steps.detect.outputs.lang }}
 
       - name: Run Unit Tests & Coverage
         run: |
@@ -70,29 +72,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect Application Language
-        id: detect
-        run: |
-          if [ -f "pom.xml" ]; then
-            echo "lang=java" >> $GITHUB_OUTPUT
-          elif [ -f "package.json" ]; then
-            echo "lang=node" >> $GITHUB_OUTPUT
-          elif [ -f "requirements.txt" ]; then
-            echo "lang=python" >> $GITHUB_OUTPUT
-          elif ls *.sln >/dev/null 2>&1; then
-            echo "lang=dotnet" >> $GITHUB_OUTPUT
-          else
-            echo "lang=unknown" >> $GITHUB_OUTPUT
-        outputs:
-          lang: ${{ steps.detect.outputs.lang }}
-
       - name: Run SAST Scans
         run: |
-          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ]; then
+          if [ "${{ needs.build-test.outputs.lang }}" = "unknown" ]; then
             echo "Skipping SAST - no supported language"
             exit 0
           fi
-          
+
           echo "Running Semgrep..."
           semgrep --config "p/owasp-top-ten" . || true
 
@@ -114,25 +100,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect Application Language
-        id: detect
-        run: |
-          if [ -f "pom.xml" ]; then
-            echo "lang=java" >> $GITHUB_OUTPUT
-          elif [ -f "package.json" ]; then
-            echo "lang=node" >> $GITHUB_OUTPUT
-          elif [ -f "requirements.txt" ]; then
-            echo "lang=python" >> $GITHUB_OUTPUT
-          elif ls *.sln >/dev/null 2>&1; then
-            echo "lang=dotnet" >> $GITHUB_OUTPUT
-          else
-            echo "lang=unknown" >> $GITHUB_OUTPUT
-        outputs:
-          lang: ${{ steps.detect.outputs.lang }}
-
       - name: Build Docker Image & Scan
         run: |
-          if [ "${{ steps.detect.outputs.lang }}" = "unknown" ] || [ ! -f Dockerfile ]; then
+          if [ "${{ needs.build-test.outputs.lang }}" = "unknown" ] || [ ! -f Dockerfile ]; then
             echo "Skipping container scan (no supported language or Dockerfile)"
             exit 0
           fi
